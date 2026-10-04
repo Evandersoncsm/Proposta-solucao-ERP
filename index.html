@@ -432,9 +432,19 @@ h1,h2,h3,.stock b,.node b,.snode b,.side h3,.panel h3,.result b{font-family:"Rob
   .slide{padding-bottom:12px!important}
   .controls{bottom:8px!important}
 }
+/* No celular: página única com rolagem vertical, sem slides */
 @media(max-width:950px){
-  .controls{right:12px!important;bottom:calc(10px + env(safe-area-inset-bottom))!important}
-  .controls button{width:44px!important;height:44px!important;font-size:16px}
+  html,body{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important}
+  .deck{height:auto!important;width:100%!important;overflow:visible!important}
+  .slide{position:relative!important;inset:auto!important;visibility:visible!important;opacity:1!important;transform:none!important;
+    display:block!important;min-height:0!important;padding:28px 16px 24px!important;border-bottom:1px solid var(--line)}
+  .slide .top{margin-bottom:6px}
+  .slide .foot{margin-top:18px}
+  .content{overflow:visible!important;padding:14px 0 0!important}
+  .controls,.hint{display:none!important}
+  .cover-slide{padding-top:20px!important}
+  .content *{opacity:1!important;transform:none}
+  .arr,.bigarr{transform:rotate(90deg)!important}
 }
 </style>
 
@@ -690,7 +700,9 @@ function enter(s){
  gsap.fromTo(els,{y:24,opacity:0},{y:0,opacity:1,duration:.68,stagger:.035,ease:"power3.out"});
  animateSolution(s);
 }
+const isMobile=()=>matchMedia("(max-width:950px)").matches;
 function go(to,dir=1){
+ if(isMobile())return;
  if(busy||to<0||to>=slides.length||to===current)return;busy=true;if(loop){loop.kill();loop=null}
  const a=slides[current],b=slides[to];b.style.visibility="visible";b.classList.add("active");
  gsap.set(b,{xPercent:dir*100,opacity:1,zIndex:3,force3D:true});gsap.set(a,{xPercent:0,opacity:1,zIndex:2,force3D:true});
