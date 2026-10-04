@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERP Inteligente — Determinação Automática de Estoque</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Roboto+Flex:opsz,wght@8..144,400;8..144,500;8..144,600;8..144,700;8..144,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070909;--p:#0e1111;--p2:#121616;--line:#252c29;--text:#f4f6f2;--muted:#8b958f;--lime:#c9f36a;--blue:#78a9ff;--red:#ef796b}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050606;color:var(--text);font-family:"Roboto Flex","Manrope",Arial,sans-serif}
+body:after{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(#0009,transparent 88%)}
+.deck{position:relative;width:100vw;height:100vh;overflow:hidden;background:var(--bg)}
+.slide{position:absolute;inset:0;padding:18px 30px 16px;display:grid;grid-template-rows:34px 1fr 24px;background:var(--bg);visibility:hidden;opacity:0;will-change:transform;backface-visibility:hidden}
+.slide.active{visibility:visible;opacity:1}
+.top,.foot{display:flex;align-items:center;justify-content:space-between;z-index:5}.top{border-bottom:1px solid var(--line);padding-bottom:8px}.foot{border-top:1px solid var(--line);padding-top:7px}
+.brand,.tag,.num,.micro,.eyebrow{font:500 9px "DM Mono";letter-spacing:.11em;text-transform:uppercase}.brand{color:#c5ccc7}.tag{border:1px solid var(--line);padding:5px 8px;color:var(--muted)}.num,.micro{color:#65706a}.eyebrow{color:var(--lime);margin-bottom:8px}
+.content{display:flex;flex-direction:column;justify-content:center;min-height:0}h1,h2,h3,p{margin:0}
+h1{font-size:clamp(60px,8.1vw,126px);line-height:.83;letter-spacing:-.075em}h2{font-size:clamp(35px,4.5vw,68px);line-height:.92;letter-spacing:-.058em}.serif{font-family:"Manrope",sans-serif;font-style:normal;font-weight:500;letter-spacing:-.045em}.lead{font-size:12px;line-height:1.58;color:var(--muted);max-width:800px;margin-top:15px}.lime{color:var(--lime)}.red{color:var(--red)}
+.hero{display:grid;grid-template-columns:1.4fr .6fr;gap:6vw;align-items:end}.hero-side{display:grid;gap:8px}.metric{border-top:1px solid var(--line);padding:12px 0}.metric b{font-size:29px;letter-spacing:-.06em}.metric span{display:block;font-size:8px;color:var(--muted);margin-top:3px}.chips{display:flex;gap:7px;margin-top:20px}.chip{border:1px solid var(--line);padding:6px 9px;font:500 7px "DM Mono"}
+
+/* scenario */
+.scenario{display:grid;grid-template-columns:.85fr 1.15fr;gap:9px;margin-top:14px}.context,.stock{border:1px solid var(--line);background:var(--p);padding:16px}.context small,.stock small,.node small,.panel small,.result small{font:500 8px "DM Mono";letter-spacing:.08em;color:var(--muted)}.context h3{font-size:31px;margin:7px 0 12px}.context p,.stock p{font-size:11px;line-height:1.5;color:var(--muted)}.stocks{display:grid;grid-template-columns:1fr 1fr;gap:7px}.stock b{display:block;font-size:21px;margin:6px 0}.qty{font:500 38px "DM Mono";letter-spacing:-.06em;margin:14px 0 8px}.meta{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:7px;font-size:8px;color:var(--muted)}
+
+/* bottleneck */
+.flow{display:grid;grid-template-columns:1fr 42px 1fr 42px 1fr 42px 1fr;gap:0;margin-top:15px}.node{border:1px solid var(--line);background:var(--p);padding:13px;min-height:112px}.node b{display:block;font-size:20px;margin:6px 0}.node p{font-size:10px;line-height:1.45;color:var(--muted)}.node.bad{border-color:rgba(239,121,107,.42)}.arr{display:flex;align-items:center;justify-content:center;color:#68716c;font-size:21px}.alert{margin-top:8px;border-left:2px solid var(--red);background:#100d0d;padding:10px 13px}.alert small{font:500 6px "DM Mono";color:var(--red)}.alert p{font-size:12px;line-height:1.45;margin-top:5px}
+
+/* why */
+.why{display:grid;grid-template-columns:1fr .65fr 1fr;gap:9px;margin-top:14px}.panel{border:1px solid var(--line);background:var(--p);padding:15px}.panel h3{font-size:26px;margin:5px 0 12px}.panel>p{font-size:11px;line-height:1.5;color:var(--muted)}.stop{border:1px dashed rgba(239,121,107,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px}.stop strong{color:var(--red);font-size:12px}.stop span{font-size:7px;line-height:1.45;color:var(--muted);margin-top:7px}.bullet{display:grid;grid-template-columns:27px 1fr;gap:8px;border-top:1px solid var(--line);padding:8px 0}.bullet em{font:500 7px "DM Mono";font-style:normal;color:var(--lime)}.bullet b{font-size:9px}.bullet p{font-size:8px;color:var(--muted);margin-top:2px}
+
+/* solution */
+.solmap{position:relative;height:min(55vh,500px);margin-top:12px;border:1px solid var(--line);background:#090c0b}.solsvg{position:absolute;inset:0;width:100%;height:100%}.path{fill:none;stroke:var(--lime);stroke-width:1.7}.path.alt{stroke:var(--blue)}
+.snode{position:absolute;z-index:3;width:195px;border:1px solid var(--line);background:var(--p);padding:12px}.snode small{font:500 6px "DM Mono";color:var(--muted)}.snode b{display:block;font-size:18px;margin:5px 0}.snode p{font-size:10px;line-height:1.45;color:var(--muted)}.s1{left:4%;top:39%}.s2{left:25%;top:39%;width:220px;border-color:rgba(201,243,106,.35)}.s3{left:50%;top:10%}.s4{left:50%;bottom:10%}.s5{right:4%;top:39%;width:220px;border-color:rgba(201,243,106,.4)}
+.rule{display:inline-block;margin-top:6px;border:1px solid var(--line);padding:3px 5px;font:500 5.5px "DM Mono";color:#abb4ae}
+
+/* before after */
+.ba{display:grid;grid-template-columns:1fr 58px 1fr;gap:8px;margin-top:14px}.side{border:1px solid var(--line);background:var(--p);padding:15px}.side.before{border-top:2px solid var(--red)}.side.after{border-top:2px solid var(--lime)}.side h3{font-size:27px;margin:6px 0 13px}.item{display:grid;grid-template-columns:28px 1fr;gap:8px;border-top:1px solid var(--line);padding:8px 0}.item em{font:500 7px "DM Mono";font-style:normal;color:var(--muted)}.item b{font-size:10px}.item p{font-size:8px;line-height:1.4;color:var(--muted);margin-top:2px}.bigarr{display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:24px}
+
+/* ending */
+.results{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:15px}.result{border:1px solid var(--line);background:var(--p);padding:15px;min-height:145px}.result small{color:var(--lime)}.result b{display:block;font-size:21px;margin:11px 0 7px}.result p{font-size:10.5px;line-height:1.5;color:var(--muted)}.question{margin-top:9px;border-left:2px solid var(--lime);background:#0d110f;padding:11px 14px}.question small{font:500 6px "DM Mono";color:var(--lime)}.question p{font-size:13px;line-height:1.45;margin-top:4px;max-width:1100px}
+.controls{position:fixed;right:18px;bottom:14px;z-index:20;display:flex;gap:6px}.controls button{width:40px;height:40px;border:1px solid #343b38;border-radius:50%;background:#0e1110;color:#fff;cursor:pointer}.controls button:hover{border-color:var(--lime)}.hint{position:fixed;left:18px;bottom:19px;z-index:20;font:500 6px "DM Mono";color:#59615d}
+@media(max-width:950px){.slide{padding:14px 15px 58px}.content{overflow:auto}.hero,.scenario,.why,.ba,.results{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arr,.bigarr{height:34px;transform:rotate(90deg)}.solmap{height:auto;padding:8px}.solsvg{display:none}.snode{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:100%!important;margin:6px 0}.hint{display:none}}
+</style>
+
+<style>
+/* Leitura para apresentação em sala */
+.brand{font-size:10px!important}
+.tag{font-size:9px!important;padding:6px 10px!important}
+.eyebrow{font-size:10px!important;margin-bottom:10px!important}
+.num,.micro{font-size:8px!important}
+
+.context small,.stock small,.node small,.panel small,.result small,
+.snode small,.question small,.alert small{
+  font-size:8px!important;
+  letter-spacing:.09em!important;
+}
+
+.context h3{font-size:32px!important}
+.stock b{font-size:21px!important}
+.node b{font-size:20px!important}
+.panel h3{font-size:27px!important}
+.side h3{font-size:27px!important}
+.snode b{font-size:19px!important}
+.result b{font-size:21px!important}
+
+.context p,.stock p,.node p,.panel>p,.snode p,.result p{
+  font-size:10.5px!important;
+  line-height:1.48!important;
+}
+.item b,.bullet b{font-size:12px!important}
+.item p,.bullet p{font-size:9.5px!important;line-height:1.42!important}
+
+.qty{font-size:48px!important}
+.metric b{font-size:34px!important}
+.metric span{font-size:9px!important}
+.chip{font-size:8px!important;padding:7px 10px!important}
+
+.flow{grid-template-columns:1fr 48px 1fr 48px 1fr 48px 1fr}
+.node{padding:16px!important;min-height:128px!important}
+.snode{padding:15px!important}
+.s1{width:210px!important}
+.s2{width:245px!important}
+.s3,.s4{width:215px!important}
+.s5{width:240px!important}
+
+.question p{font-size:15px!important}
+.alert p{font-size:12px!important}
+.stop strong{font-size:15px!important}
+.stop span{font-size:9px!important}
+.rule{font-size:7px!important;padding:4px 6px!important}
+
+@media(max-width:950px){
+  .context h3{font-size:26px!important}
+  .stock b,.node b,.snode b,.result b{font-size:17px!important}
+  .qty{font-size:38px!important}
+}
+</style>
+
+
+<style>
+/* Tipografia e legibilidade de sala */
+body{font-family:"Roboto Flex","Manrope",Arial,sans-serif}
+h1,h2,h3,.stock b,.node b,.snode b,.side h3,.panel h3,.result b{font-family:"Roboto Flex","Manrope",Arial,sans-serif}
+.serif{font-family:"Manrope",sans-serif!important;font-style:normal!important;font-weight:500!important}
+
+/* Números + nomes das etapas: agora grandes */
+.node small,
+.snode small,
+.context small,
+.stock small,
+.panel small,
+.result small,
+.alert small,
+.question small,
+.side small{
+  font-family:"Manrope",sans-serif!important;
+  font-size:11px!important;
+  line-height:1.2!important;
+  font-weight:700!important;
+  letter-spacing:.04em!important;
+}
+
+.node b{font-size:23px!important;line-height:1.08!important}
+.snode b{font-size:22px!important;line-height:1.1!important}
+.stock b{font-size:23px!important}
+.panel h3,.side h3{font-size:29px!important}
+.result b{font-size:23px!important}
+.node p,.snode p,.stock p,.context p,.panel>p,.result p{font-size:11.5px!important;line-height:1.5!important}
+.item b,.bullet b{font-size:13px!important}
+.item p,.bullet p{font-size:10.5px!important}
+.item em,.bullet em{font-size:10px!important;font-weight:700!important}
+.rule{font-size:9px!important}
+
+/* Capa moderna */
+.cover-slide{background:
+  radial-gradient(circle at 78% 35%,rgba(201,243,106,.08),transparent 26%),
+  radial-gradient(circle at 67% 82%,rgba(120,169,255,.055),transparent 25%),
+  #070909}
+.cover-grid{display:grid;grid-template-columns:1.17fr .83fr;gap:6vw;align-items:center}
+.cover-kicker{display:flex;align-items:center;gap:10px;font:700 10px "Manrope";letter-spacing:.08em;color:#a5aea8;margin-bottom:23px}
+.cover-kicker span{width:32px;height:32px;border:1px solid rgba(201,243,106,.4);display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:11px}
+.cover-copy h1{font-family:"Manrope",sans-serif;font-size:clamp(62px,7.7vw,118px);font-weight:600;letter-spacing:-.075em;line-height:.88}
+.cover-accent{color:var(--lime)}
+.cover-lead{margin-top:22px;max-width:790px;font-size:15px;line-height:1.55;color:#9ba59f}
+.cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:28px;max-width:760px}
+.cover-meta>div{border-top:1px solid #303735;padding-top:11px}
+.cover-meta small{display:block;font:700 9px "Manrope";letter-spacing:.08em;color:#747e78;margin-bottom:6px}
+.cover-meta b{font-size:16px;font-weight:600}
+
+.cover-visual{border:1px solid #2d3431;background:rgba(13,17,16,.74);padding:18px;min-height:420px;display:flex;flex-direction:column;justify-content:center}
+.cv-label{font:700 9px "Manrope";letter-spacing:.08em;color:#7f8983;margin-bottom:18px}
+.cv-flow{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr;align-items:stretch}
+.cv-node{border:1px solid #313936;background:#0c0f0e;padding:16px 13px;min-height:120px;display:flex;flex-direction:column;justify-content:center}
+.cv-node small{font:700 11px "Manrope";color:#858f89}
+.cv-node b{font-size:20px;line-height:1.05;margin:7px 0 5px}
+.cv-node span{font-size:11px;line-height:1.3;color:#87918b}
+.cv-node.main{border-color:rgba(201,243,106,.45)}
+.cv-node.main b{color:var(--lime)}
+.cv-node.danger{border-color:rgba(239,121,107,.45)}
+.cv-node.danger b{color:var(--red)}
+.cv-line{display:flex;align-items:center;justify-content:center}
+.cv-line i{width:100%;height:1px;background:#5e6862;position:relative}
+.cv-line i:after{content:"";position:absolute;right:0;top:-4px;border-left:7px solid #5e6862;border-top:4px solid transparent;border-bottom:4px solid transparent}
+.cv-answer{margin-top:16px;border:1px solid rgba(201,243,106,.26);background:#0e1310;padding:15px;display:grid;grid-template-columns:46px 1fr;gap:12px;align-items:center}
+.cv-answer>span{width:46px;height:46px;border:1px solid rgba(201,243,106,.35);display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:24px}
+.cv-answer small{font:700 9px "Manrope";letter-spacing:.07em;color:var(--lime)}
+.cv-answer b{display:block;font-size:14px;line-height:1.35;margin-top:4px}
+
+/* Mais espaço para textos maiores */
+.flow{grid-template-columns:1fr 42px 1fr 42px 1fr 42px 1fr!important}
+.node{padding:18px!important;min-height:145px!important}
+.snode{padding:16px!important}
+.s1{width:220px!important}
+.s2{width:255px!important}
+.s3,.s4{width:225px!important}
+.s5{width:250px!important}
+.solmap{height:min(58vh,525px)!important}
+
+@media(max-width:950px){
+ .cover-grid{grid-template-columns:1fr}
+ .cover-visual{min-height:unset}
+ .cv-flow{grid-template-columns:1fr}
+ .cv-line{height:30px;transform:rotate(90deg)}
+ .cover-copy h1{font-size:54px}
+ .cover-meta{grid-template-columns:1fr}
+}
+</style>
+
+
+<style>
+/* Fluxo interativo V2 — conectores sempre atrás e fora dos cards */
+.solmap-v2{
+  isolation:isolate;
+  position:relative;
+  overflow:hidden;
+  background:#090c0b;
+}
+.solsvg-v2{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  overflow:visible;
+}
+.solmap-v2 .connector{
+  fill:none!important;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.solmap-v2 .snode{
+  z-index:10!important;
+  background:#0e1111!important;
+  position:absolute;
+}
+.solmap-v2 .s1{left:4%!important;top:39%!important;width:220px!important}
+.solmap-v2 .s2{left:26%!important;top:35%!important;width:255px!important}
+.solmap-v2 .s3{left:60%!important;top:7%!important;width:235px!important}
+.solmap-v2 .s4{left:60%!important;bottom:7%!important;width:235px!important}
+.solmap-v2 .s5{right:3%!important;top:34%!important;width:250px!important}
+
+.route-label{
+  position:absolute;
+  z-index:4;
+  background:#090c0b;
+  border:1px solid #28302c;
+  padding:4px 7px;
+  font:700 8px "Manrope",sans-serif;
+  letter-spacing:.06em;
+  color:#8f9993;
+  pointer-events:none;
+}
+.rl-main{left:20%;top:47%}
+.rl-a{left:49%;top:17%;color:var(--lime)}
+.rl-b{left:50%;bottom:18%;color:var(--blue)}
+
+.node-status{
+  margin:9px 0 7px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  padding:7px 0;
+}
+.node-status span{
+  font:700 8px "Manrope",sans-serif;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
+.node-status strong{
+  font:700 18px "Roboto Flex","Manrope",sans-serif;
+}
+.bad-status strong{color:var(--red)}
+.good-status strong{color:var(--lime)}
+.success-line{
+  margin-top:9px;
+  padding-top:8px;
+  border-top:1px solid rgba(201,243,106,.22);
+  font:700 9px "Manrope",sans-serif;
+  letter-spacing:.06em;
+  color:var(--lime);
+}
+
+/* Os cards criam uma máscara sólida sobre qualquer conector abaixo */
+.solmap-v2 .snode:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:#0e1111;
+}
+
+/* mantém o fluxo legível em resoluções menores */
+@media(max-width:1100px) and (min-width:951px){
+  .solmap-v2 .s1{width:185px!important}
+  .solmap-v2 .s2{width:215px!important}
+  .solmap-v2 .s3,.solmap-v2 .s4{width:195px!important}
+  .solmap-v2 .s5{width:205px!important}
+  .route-label{font-size:7px}
+}
+@media(max-width:950px){
+  .solsvg-v2,.route-label{display:none!important}
+  .solmap-v2 .snode{
+    position:relative!important;
+    left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+    width:100%!important;
+    margin:7px 0!important;
+  }
+}
+</style>
+
+
+<style>
+/* Correção definitiva: cards nunca ficam apagados */
+.solmap-v2{
+  background:#090c0b !important;
+}
+.solmap-v2 .snode{
+  opacity:1 !important;
+  background:#0e1111 !important;
+  border:1px solid #2b322f !important;
+  z-index:20 !important;
+  filter:none !important;
+}
+.solmap-v2 .snode *{
+  opacity:1 !important;
+}
+.solmap-v2 .solsvg-v2{
+  z-index:1 !important;
+}
+.solmap-v2 .connector{
+  opacity:.72 !important;
+  stroke-width:1.8 !important;
+}
+.solmap-v2 .route-label{
+  z-index:5 !important;
+  background:#0a0d0c !important;
+}
+.solmap-v2 .rl-main{left:18% !important; top:46% !important}
+.solmap-v2 .rl-a{left:49% !important; top:16% !important}
+.solmap-v2 .rl-b{left:50% !important; bottom:16% !important}
+
+/* destaque melhor sem escurecer */
+.solmap-v2 .s2{border-color:rgba(201,243,106,.32) !important}
+.solmap-v2 .s3{border-color:rgba(239,121,107,.30) !important}
+.solmap-v2 .s4{border-color:rgba(120,169,255,.28) !important}
+.solmap-v2 .s5{border-color:rgba(201,243,106,.38) !important}
+
+.node-status{
+  background:transparent !important;
+}
+.success-line{
+  opacity:1 !important;
+}
+</style>
+
+
+<style>
+/* Ajuste das conexões finais: entrar pela lateral, não por baixo */
+.solmap-v2 .s3{left:60% !important; top:8% !important; width:235px !important}
+.solmap-v2 .s4{left:60% !important; bottom:8% !important; width:235px !important}
+.solmap-v2 .s5{right:3% !important; top:32% !important; width:250px !important}
+
+.solmap-v2 .c-a-result,
+.solmap-v2 .c-b-result{
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.solmap-v2 .rl-a{left:48% !important; top:17% !important}
+.solmap-v2 .rl-b{left:49% !important; bottom:17% !important}
+</style>
+
+
+<style>
+.solmap-v2 .s3{top:8% !important}
+.solmap-v2 .s4{bottom:8% !important}
+.solmap-v2 .s5{
+  right:2.4% !important;
+  top:33% !important;
+  width:255px !important;
+}
+.solmap-v2 .c-a-result,
+.solmap-v2 .c-b-result{
+  opacity:.82 !important;
+}
+</style>
+
+</head>
+<body>
+<div class="deck">
+
+<section class="slide active cover-slide">
+<div class="top"><div class="brand">Pesquisa aplicada • Sistemas ERP</div><div class="tag">Estudo de caso real</div></div>
+<div class="content cover-grid">
+  <div class="cover-copy">
+    <div class="cover-kicker"><span>01</span> ERP INTEGRADO AO MARKETPLACE</div>
+    <h1>Existe estoque.<br><span class="cover-accent">Mas o ERP para.</span></h1>
+    <p class="cover-lead">Estudo de um problema real identificado em um ambiente empresarial no qual o ERP está integrado ao Mercado Livre e precisa decidir automaticamente de qual origem de estoque atender cada venda.</p>
+    <div class="cover-meta">
+      <div><small>PROBLEMA</small><b>Escolha manual de estoque</b></div>
+      <div><small>PROPOSTA</small><b>Determinação automática + fallback</b></div>
+    </div>
+  </div>
+
+  <div class="cover-visual">
+    <div class="cv-label">CENÁRIO OBSERVADO</div>
+    <div class="cv-flow">
+      <div class="cv-node"><small>01</small><b>Mercado Livre</b><span>Venda realizada</span></div>
+      <div class="cv-line"><i></i></div>
+      <div class="cv-node main"><small>02</small><b>ERP</b><span>Recebe o pedido</span></div>
+      <div class="cv-line"><i></i></div>
+      <div class="cv-node danger"><small>03</small><b>Estoque A = 0</b><span>Origem prioritária zerada</span></div>
+    </div>
+    <div class="cv-answer"><span>?</span><div><small>DECISÃO AUSENTE</small><b>Existe estoque no B. O sistema deve saber quando pode usá-lo.</b></div></div>
+  </div>
+</div>
+<div class="foot"><div class="num">01 / 07</div><div class="micro">Problema real → solução proposta</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">Cenário empresarial</div><div class="tag">Mesmo produto • estoques distintos</div></div>
+<div class="content">
+  <div class="eyebrow">O contexto</div>
+  <h2>Estoque não é apenas quantidade.<br><span class="serif">A origem também importa.</span></h2>
+  <div class="scenario">
+    <div class="context"><small>EXEMPLO DIDÁTICO</small><h3>Produto 001</h3><p>O mesmo SKU está disponível em dois armazéns. As origens podem possuir características fiscais e operacionais diferentes. Por isso, o ERP não deve escolher uma origem apenas porque ela possui saldo.</p></div>
+    <div class="stocks">
+      <div class="stock"><small>ARMAZÉM A • PRIORITÁRIO</small><b>Produto 001 • Com IPI</b><div class="qty">1.000</div><div class="meta"><span>Prioridade</span><strong>1ª origem</strong></div></div>
+      <div class="stock"><small>ARMAZÉM B • ALTERNATIVO</small><b>Produto 001 • Sem IPI</b><div class="qty">2.000</div><div class="meta"><span>Prioridade</span><strong>2ª origem</strong></div></div>
+    </div>
+  </div>
+</div>
+<div class="foot"><div class="num">02 / 07</div><div class="micro">Origem + regra + saldo</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">O gargalo</div><div class="tag">Onde a operação quebra</div></div>
+<div class="content">
+  <div class="eyebrow">Situação crítica</div>
+  <h2>O estoque A zerou.<br><span class="serif">O produto continua existindo no B.</span></h2>
+  <div class="flow">
+    <div class="node"><small>01 • PEDIDO</small><b>100 unidades</b><p>Chega uma nova venda do Produto 001.</p></div><div class="arr">→</div>
+    <div class="node"><small>02 • ORIGEM PADRÃO</small><b>ERP procura A</b><p>A origem A está configurada como prioridade.</p></div><div class="arr">→</div>
+    <div class="node bad"><small>03 • SALDO</small><b class="red">A = 0 unidades</b><p>Não há saldo suficiente na origem prioritária.</p></div><div class="arr">→</div>
+    <div class="node bad"><small>04 • GARGALO</small><b class="red">Processo interrompido</b><p>Sem fallback automático, o usuário precisa decidir manualmente.</p></div>
+  </div>
+  <div class="alert"><small>O PONTO CENTRAL</small><p>A empresa ainda possui <b>2.000 unidades no Armazém B</b>. O problema não é falta física do produto; é a falta de uma decisão automática sobre qual outra origem pode ser utilizada.</p></div>
+</div>
+<div class="foot"><div class="num">03 / 07</div><div class="micro">Saldo existe • decisão não</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">Por que o ERP para?</div><div class="tag">Causa do gargalo</div></div>
+<div class="content">
+  <div class="eyebrow">A lacuna de decisão</div>
+  <h2>O ERP conhece os dados.<br><span class="serif">Mas precisa conhecer a estratégia.</span></h2>
+  <div class="why">
+    <div class="panel"><small>O SISTEMA JÁ SABE</small><h3>Dados operacionais</h3><p>Produto, quantidade solicitada, armazéns e saldo disponível.</p><div class="bullet"><em>01</em><div><b>SKU</b><p>Qual produto atender.</p></div></div><div class="bullet"><em>02</em><div><b>Saldo</b><p>Quanto existe em cada origem.</p></div></div></div>
+    <div class="stop"><strong>FALTA A REGRA</strong><span>Se a origem A falhar, o ERP pode usar B? Em quais condições? Com qual prioridade?</span></div>
+    <div class="panel"><small>O SISTEMA PRECISA SABER</small><h3>Estratégia de estoque</h3><p>A Natureza da Operação deve carregar regras que determinem quais origens são válidas.</p><div class="bullet"><em>01</em><div><b>Elegibilidade</b><p>Quais origens podem atender.</p></div></div><div class="bullet"><em>02</em><div><b>Prioridade</b><p>Qual deve ser consultada primeiro.</p></div></div><div class="bullet"><em>03</em><div><b>Fallback</b><p>O que fazer quando a primeira não atende.</p></div></div></div>
+  </div>
+</div>
+<div class="foot"><div class="num">04 / 07</div><div class="micro">Dados sem regra ≠ decisão</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">Solução proposta</div><div class="tag">Motor de determinação</div></div>
+<div class="content">
+  <div class="eyebrow">ERP inteligente</div>
+  <h2>Antes de parar,<br><span class="serif">procure outra origem elegível.</span></h2>
+  <div class="solmap solmap-v2" id="solutionMap">
+    <svg class="solsvg solsvg-v2" viewBox="0 0 1400 500" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <marker id="arrowLimeV2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#c9f36a"></path>
+        </marker>
+        <marker id="arrowBlueV2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#78a9ff"></path>
+        </marker>
+      </defs>
+
+      <!-- Pedido -> Natureza: linha reta entre as bordas -->
+      <path class="path connector c-main" d="M285 250 H365" marker-end="url(#arrowLimeV2)"/>
+
+      <!-- Natureza -> A: sobe somente depois de sair do card -->
+      <path class="path connector c-a" d="M620 250 H675 Q705 250 705 220 V132 Q705 105 735 105 H845" marker-end="url(#arrowLimeV2)"/>
+
+      <!-- Natureza -> B: desce somente depois de sair do card -->
+      <path class="path alt connector c-b" d="M620 250 H675 Q705 250 705 280 V368 Q705 395 735 395 H845" marker-end="url(#arrowBlueV2)"/>
+
+      <!-- A -> Decisão: contorna por cima, sem atravessar cards -->
+      <path class="path connector c-a-result" d="M1070 145 H1115 Q1145 145 1145 190 Q1145 214 1175 214 H1210" marker-end="url(#arrowLimeV2)"/>
+
+      <!-- B -> Decisão: contorna por baixo, sem atravessar cards -->
+      <path class="path alt connector c-b-result" d="M1070 355 H1115 Q1145 355 1145 310 Q1145 286 1175 286 H1210" marker-end="url(#arrowBlueV2)"/>
+    </svg>
+
+    <div class="route-label rl-main">PEDIDO</div>
+    <div class="route-label rl-a">1ª PRIORIDADE</div>
+    <div class="route-label rl-b">FALLBACK</div>
+
+    <div class="snode s1"><small>01 • PEDIDO</small><b>Produto 001 • 100 un.</b><p>A venda entra no ERP e inicia a determinação da origem.</p></div>
+
+    <div class="snode s2"><small>02 • NATUREZA DA OPERAÇÃO</small><b>Carrega a estratégia de estoque</b><p>Define quais origens são elegíveis, a ordem de prioridade e a regra de fallback.</p><span class="rule">REGRA CONFIGURÁVEL</span></div>
+
+    <div class="snode s3">
+      <small>03A • PRIMEIRA TENTATIVA</small>
+      <b>Armazém A • Com IPI</b>
+      <div class="node-status bad-status"><span>SALDO</span><strong>0 un.</strong></div>
+      <p>A origem prioritária não consegue atender o pedido.</p>
+    </div>
+
+    <div class="snode s4">
+      <small>03B • FALLBACK AUTOMÁTICO</small>
+      <b>Armazém B • Sem IPI</b>
+      <div class="node-status good-status"><span>SALDO</span><strong>2.000 un.</strong></div>
+      <p>O ERP verifica se esta origem é permitida para a operação.</p>
+    </div>
+
+    <div class="snode s5">
+      <small>04 • DECISÃO DO ERP</small>
+      <b class="lime">Reservar e continuar</b>
+      <p>Se o Armazém B for elegível, o sistema reserva 100 unidades e libera o faturamento sem intervenção manual.</p>
+      <div class="success-line">✓ OPERAÇÃO CONTINUA</div>
+    </div>
+  </div>
+  <script>
+  /* Conectores calculados a partir da posição real dos cards */
+  (function(){
+    var map=document.getElementById('solutionMap');
+    if(!map) return;
+    var svg=map.querySelector('svg');
+    function box(sel){
+      var m=map.getBoundingClientRect(), r=map.querySelector(sel).getBoundingClientRect();
+      return {l:r.left-m.left,r:r.right-m.left,t:r.top-m.top,b:r.bottom-m.top,h:r.height,cy:r.top-m.top+r.height/2};
+    }
+    function elbow(x1,y1,x2,y2,mx){
+      var dy=y2-y1;
+      if(Math.abs(dy)<2) return 'M'+x1+' '+y1+' H'+x2;
+      var s=dy>0?1:-1, r=Math.min(14,Math.abs(dy)/2,(mx-x1)/2,(x2-mx)/2);
+      return 'M'+x1+' '+y1+' H'+(mx-r)+' Q'+mx+' '+y1+' '+mx+' '+(y1+s*r)+
+             ' V'+(y2-s*r)+' Q'+mx+' '+y2+' '+(mx+r)+' '+y2+' H'+x2;
+    }
+    function label(sel,x,y){
+      var el=map.querySelector(sel);
+      el.style.setProperty('left',(x-el.offsetWidth/2)+'px','important');
+      el.style.setProperty('top',(y-el.offsetHeight/2)+'px','important');
+      el.style.setProperty('bottom','auto','important');
+    }
+    function draw(){
+      var w=map.clientWidth,h=map.clientHeight;
+      if(!w||!h||getComputedStyle(svg).display==='none') return;
+      svg.setAttribute('viewBox','0 0 '+w+' '+h);
+      var s1=box('.s1'),s2=box('.s2'),s3=box('.s3'),s4=box('.s4'),s5=box('.s5'),g=4,a=8;
+      var y=s2.cy;
+      map.querySelector('.c-main').setAttribute('d','M'+(s1.r+g)+' '+y+' H'+(s2.l-a));
+      var m1=(s2.r+s3.l)/2;
+      map.querySelector('.c-a').setAttribute('d',elbow(s2.r+g,y,s3.l-a,s3.cy,m1));
+      map.querySelector('.c-b').setAttribute('d',elbow(s2.r+g,y,s4.l-a,s4.cy,m1));
+      var m2=(s3.r+s5.l)/2;
+      map.querySelector('.c-a-result').setAttribute('d',elbow(s3.r+g,s3.cy,s5.l-a,s5.t+s5.h*0.3,m2));
+      map.querySelector('.c-b-result').setAttribute('d',elbow(s4.r+g,s4.cy,s5.l-a,s5.t+s5.h*0.7,m2));
+      label('.rl-main',(s1.r+s2.l)/2,y-16);
+      label('.rl-a',(m1+s3.l)/2,s3.cy-14);
+      label('.rl-b',(m1+s4.l)/2,s4.cy-14);
+    }
+    if(window.ResizeObserver) new ResizeObserver(draw).observe(map);
+    window.addEventListener('resize',draw);
+    window.addEventListener('load',draw);
+    if(document.fonts) document.fonts.ready.then(draw);
+    draw();
+  })();
+  </script>
+</div>
+<div class="foot"><div class="num">05 / 07</div><div class="micro">Natureza → prioridade → fallback</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">Antes × Depois</div><div class="tag">Mudança operacional</div></div>
+<div class="content">
+  <div class="eyebrow">O ganho da automação</div>
+  <h2>De conhecimento do operador<br>para <span class="serif">regra do sistema.</span></h2>
+  <div class="ba">
+    <div class="side before"><small>SEM DETERMINAÇÃO AUTOMÁTICA</small><h3>Dependência manual</h3><div class="item"><em>01</em><div><b>A zera</b><p>ERP não consegue atender pela prioridade.</p></div></div><div class="item"><em>02</em><div><b>Fluxo para</b><p>Mesmo existindo estoque em B.</p></div></div><div class="item"><em>03</em><div><b>Usuário intervém</b><p>Analisa e troca a origem manualmente.</p></div></div><div class="item"><em>04</em><div><b>Impacto</b><p>Atraso, retrabalho e risco operacional.</p></div></div></div>
+    <div class="bigarr">→</div>
+    <div class="side after"><small>COM MOTOR DE REGRAS</small><h3>Continuidade automática</h3><div class="item"><em>01</em><div><b>A zera</b><p>ERP detecta indisponibilidade.</p></div></div><div class="item"><em>02</em><div><b>Consulta alternativas</b><p>Busca origens elegíveis.</p></div></div><div class="item"><em>03</em><div><b>Valida B</b><p>Confere se a operação permite a origem.</p></div></div><div class="item"><em>04</em><div><b>Reserva + fatura</b><p>O processo continua automaticamente.</p></div></div></div>
+  </div>
+</div>
+<div class="foot"><div class="num">06 / 07</div><div class="micro">Automação com governança</div></div>
+</section>
+
+<section class="slide">
+<div class="top"><div class="brand">Conclusão</div><div class="tag">Proposta acadêmica</div></div>
+<div class="content">
+  <div class="eyebrow">Resultado esperado</div>
+  <h2>Não é usar qualquer estoque.<br><span class="serif">É escolher automaticamente o estoque correto.</span></h2>
+  <div class="results">
+    <div class="result"><small>01 • CONTINUIDADE</small><b>Menos paradas</b><p>O ERP tenta origens alternativas elegíveis antes de interromper o faturamento.</p></div>
+    <div class="result"><small>02 • VELOCIDADE</small><b>Menos intervenção</b><p>Decisões repetitivas deixam de depender do operador.</p></div>
+    <div class="result"><small>03 • CONTROLE</small><b>Regra auditável</b><p>Natureza, prioridade, origem selecionada e reserva ficam rastreáveis.</p></div>
+    <div class="result"><small>04 • ESCALA</small><b>ERP mais inteligente</b><p>O crescimento da operação não exige o mesmo crescimento de trabalho manual.</p></div>
+  </div>
+  <div class="question"><small>QUESTÃO DE PESQUISA</small><p>Como um sistema ERP pode selecionar automaticamente uma origem alternativa de estoque quando a origem prioritária está indisponível, reduzindo intervenções manuais e evitando interrupções no faturamento?</p></div>
+</div>
+<div class="foot"><div class="num">07 / 07</div><div class="micro">Determinação inteligente de estoque</div></div>
+</section>
+</div>
+
+<div class="hint">← → NAVEGAR • ESPAÇO • HOME / END</div>
+<div class="controls"><button id="prev">←</button><button id="next">→</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const slides=[...document.querySelectorAll(".slide")];let current=0,busy=false,loop=null;
+function animateSolution(s){
+ if(loop){loop.kill();loop=null}
+ const m=s.querySelector("#solutionMap"); if(!m)return;
+ const paths=m.querySelectorAll(".connector");
+ const labels=m.querySelectorAll(".route-label");
+ const nodes=m.querySelectorAll(".snode");
+
+ // cards sempre visíveis
+ gsap.set(nodes,{opacity:1});
+ gsap.set(labels,{opacity:.88});
+ gsap.set(paths,{strokeDasharray:900,strokeDashoffset:900,opacity:.22});
+
+ loop=gsap.timeline({repeat:-1,repeatDelay:1.2});
+ paths.forEach((p,i)=>{
+   loop.to(p,{
+     strokeDashoffset:0,
+     opacity:.82,
+     duration:.52,
+     ease:"power2.inOut"
+   },i*.22);
+ });
+ loop.to(labels,{opacity:1,duration:.2,stagger:.05},"<.1")
+     .to(paths,{opacity:.22,duration:.55,delay:1.0});
+}
+function enter(s){
+ const els=s.querySelectorAll(".eyebrow,h1,h2,.lead,.metric,.context,.stock,.node,.panel,.stop,.side,.result,.question");
+ gsap.fromTo(els,{y:24,opacity:0},{y:0,opacity:1,duration:.68,stagger:.035,ease:"power3.out"});
+ animateSolution(s);
+}
+function go(to,dir=1){
+ if(busy||to<0||to>=slides.length||to===current)return;busy=true;if(loop){loop.kill();loop=null}
+ const a=slides[current],b=slides[to];b.style.visibility="visible";b.classList.add("active");
+ gsap.set(b,{xPercent:dir*100,opacity:1,zIndex:3,force3D:true});gsap.set(a,{xPercent:0,opacity:1,zIndex:2,force3D:true});
+ gsap.timeline({defaults:{duration:1,ease:"expo.inOut",force3D:true},onComplete:()=>{a.classList.remove("active");a.style.visibility="hidden";gsap.set(a,{xPercent:0,opacity:0,zIndex:"auto"});gsap.set(b,{xPercent:0,opacity:1,zIndex:"auto"});current=to;busy=false;enter(b)}}).to(a,{xPercent:-dir*100},0).to(b,{xPercent:0},0)
+}
+document.querySelector("#next").onclick=()=>go(current+1,1);document.querySelector("#prev").onclick=()=>go(current-1,-1);
+addEventListener("keydown",e=>{if(["ArrowRight","PageDown"," "].includes(e.key)){e.preventDefault();go(current+1,1)}if(["ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();go(current-1,-1)}if(e.key==="Home")go(0,-1);if(e.key==="End")go(slides.length-1,1)});
+let sx=null;addEventListener("touchstart",e=>sx=e.touches[0].clientX,{passive:true});addEventListener("touchend",e=>{if(sx===null)return;let d=e.changedTouches[0].clientX-sx;if(Math.abs(d)>55)go(current+(d<0?1:-1),d<0?1:-1);sx=null},{passive:true});
+enter(slides[0]);
+</script>
+</body>
+</html>
